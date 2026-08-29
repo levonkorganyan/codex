@@ -562,6 +562,13 @@ impl ChatWidget {
     }
 
     fn collaboration_mode_indicator(&self) -> Option<CollaborationModeIndicator> {
+        if crate::slash_command::gong_mode() {
+            return Some(if self.gong_debug_mode {
+                CollaborationModeIndicator::GongDebug
+            } else {
+                CollaborationModeIndicator::GongRun
+            });
+        }
         if !self.collaboration_modes_enabled() {
             return None;
         }

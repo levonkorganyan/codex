@@ -95,6 +95,9 @@ impl ChatWidget {
             pet_http_client.clone(),
         );
         let mut widget = Self {
+            gong_user_name: None,
+            gong_search_deep: false,
+            gong_debug_mode: false,
             app_event_tx: app_event_tx.clone(),
             frame_requester: frame_requester.clone(),
             codex_op_target,

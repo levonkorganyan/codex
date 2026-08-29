@@ -257,9 +257,24 @@ impl ChatWidget {
                 self.app_event_tx
                     .send(AppEvent::OpenDesktopThread { thread_id });
             }
+            SlashCommand::Init if crate::slash_command::gong_mode() => {
+                let current = self
+                    .gong_user_name
+                    .as_deref()
+                    .map(|name| format!("Current name: {name}. "))
+                    .unwrap_or_default();
+                self.add_info_message(format!("{current}Usage: /init <your name>"), None);
+            }
             SlashCommand::Init => {
                 const INIT_PROMPT: &str = include_str!("../../prompt_for_init_command.md");
                 self.submit_user_message(INIT_PROMPT.to_string().into());
+            }
+            SlashCommand::SearchMode => {
+                let mode = if self.gong_search_deep { "deep" } else { "fast" };
+                self.add_info_message(
+                    format!("Search mode: {mode}. Usage: /search-mode <fast|deep>"),
+                    None,
+                );
             }
             SlashCommand::Compact => {
                 if self.blocks_direct_input {
@@ -708,6 +723,22 @@ impl ChatWidget {
         } = prepared;
         let trimmed = args.trim();
         match cmd {
+            SlashCommand::Init if crate::slash_command::gong_mode() => {
+                // Frontend-only until wired to the sidecar protocol.
+                self.gong_user_name = Some(trimmed.to_string());
+                self.add_info_message(format!("gong will search as {trimmed}"), None);
+            }
+            SlashCommand::SearchMode => match trimmed.to_ascii_lowercase().as_str() {
+                "fast" => {
+                    self.gong_search_deep = false;
+                    self.add_info_message("Search mode: fast".to_string(), None);
+                }
+                "deep" => {
+                    self.gong_search_deep = true;
+                    self.add_info_message("Search mode: deep".to_string(), None);
+                }
+                _ => self.add_error_message("Usage: /search-mode <fast|deep>".to_string()),
+            },
             SlashCommand::Export if trimmed.is_empty() => self.show_transcript_export_popup(),
             SlashCommand::Export => {
                 self.set_queue_autosend_suppressed(/*suppressed*/ true);
@@ -1164,6 +1195,7 @@ impl ChatWidget {
             | SlashCommand::Resume
             | SlashCommand::Fork
             | SlashCommand::Init
+            | SlashCommand::SearchMode
             | SlashCommand::Compact
             | SlashCommand::Review
             | SlashCommand::Model

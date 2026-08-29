@@ -548,6 +548,12 @@ pub(crate) enum ExternalEditorState {
 /// (which view gets Ctrl+C), while `ChatWidget` owns process-level decisions such as interrupting
 /// active work, arming the double-press quit shortcut, and requesting shutdown-first exit.
 pub(crate) struct ChatWidget {
+    /// Gong mode: user identity set via /init (frontend-only until wired).
+    pub(crate) gong_user_name: Option<String>,
+    /// Gong mode: retrieval depth from /search-mode (frontend-only until wired).
+    pub(crate) gong_search_deep: bool,
+    /// Gong mode: tab-switched run/debug execution mode (frontend-only until wired).
+    pub(crate) gong_debug_mode: bool,
     app_event_tx: AppEventSender,
     codex_op_target: CodexOpTarget,
     bottom_pane: BottomPane,

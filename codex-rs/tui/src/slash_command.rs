@@ -1,4 +1,9 @@
 use strum::IntoEnumIterator;
+
+/// Whether the TUI is running as the Gong retrieval harness.
+pub fn gong_mode() -> bool {
+    std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty())
+}
 use strum_macros::AsRefStr;
 use strum_macros::EnumIter;
 use strum_macros::EnumString;
@@ -10,6 +15,8 @@ use strum_macros::IntoStaticStr;
 )]
 #[strum(serialize_all = "kebab-case")]
 pub enum SlashCommand {
+    // Gong retrieval mode commands (hidden outside gong mode).
+    SearchMode,
     // DO NOT ALPHA-SORT! Enum order is presentation order in the popup, so
     // more frequently used commands should be listed first.
     Model,
@@ -86,7 +93,15 @@ pub enum SlashCommand {
 impl SlashCommand {
     /// User-visible description shown in the popup.
     pub fn description(self) -> &'static str {
+        if gong_mode() {
+            match self {
+                SlashCommand::Init => return "tell gong who you are (/init <your name>)",
+                SlashCommand::SearchMode => return "switch retrieval depth: fast or deep",
+                _ => {}
+            }
+        }
         match self {
+            SlashCommand::SearchMode => "switch retrieval depth: fast or deep",
             SlashCommand::Feedback => "send logs to maintainers",
             SlashCommand::New => "start a new chat during a conversation",
             SlashCommand::Init => "create an AGENTS.md file with instructions for Codex",
@@ -161,9 +176,13 @@ impl SlashCommand {
 
     /// Whether this command supports inline args (for example `/review ...`).
     pub fn supports_inline_args(self) -> bool {
+        if gong_mode() && matches!(self, SlashCommand::Init | SlashCommand::SearchMode) {
+            return true;
+        }
         matches!(
             self,
-            SlashCommand::Review
+            SlashCommand::SearchMode
+                | SlashCommand::Review
                 | SlashCommand::Rename
                 | SlashCommand::New
                 | SlashCommand::Clear
@@ -206,7 +225,8 @@ impl SlashCommand {
     /// Whether this command can be run while a task is in progress.
     pub fn available_during_task(self) -> bool {
         match self {
-            SlashCommand::New
+            SlashCommand::SearchMode
+            | SlashCommand::New
             | SlashCommand::Archive
             | SlashCommand::Delete
             | SlashCommand::Fork
@@ -267,7 +287,12 @@ impl SlashCommand {
     }
 
     fn is_visible(self) -> bool {
+        if gong_mode() {
+            // Gong retrieval mode exposes exactly two commands.
+            return matches!(self, SlashCommand::Init | SlashCommand::SearchMode);
+        }
         match self {
+            SlashCommand::SearchMode => false,
             SlashCommand::SandboxReadRoot => cfg!(target_os = "windows"),
             SlashCommand::Copy => !cfg!(target_os = "android"),
             SlashCommand::App => cfg!(any(target_os = "macos", target_os = "windows")),

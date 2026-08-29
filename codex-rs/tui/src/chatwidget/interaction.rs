@@ -36,6 +36,25 @@ impl ChatWidget {
             return;
         }
 
+        // Gong mode: Tab on an empty composer switches run/debug execution mode.
+        if crate::slash_command::gong_mode()
+            && matches!(
+                key_event,
+                KeyEvent {
+                    code: KeyCode::Tab,
+                    modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
+                    ..
+                }
+            )
+            && self.bottom_pane.composer_text().is_empty()
+        {
+            self.gong_debug_mode = !self.gong_debug_mode;
+            self.update_collaboration_mode_indicator();
+            self.request_redraw();
+            return;
+        }
+
         if self.handle_reasoning_shortcut(key_event) || self.handle_permission_shortcut(key_event) {
             self.bottom_pane.clear_quit_shortcut_hint();
             self.quit_shortcut_expires_at = None;
