@@ -30,20 +30,18 @@ pub fn gong_bigquery_project() -> String {
     std::env::var("BQ_PROJECT").unwrap_or_else(|_| "digital-arbor-400".to_string())
 }
 
-/// Identity prefix added to submitted gong queries that refer to the user.
+/// Identity prefix added to every submitted gong query once /init is set.
+///
+/// The guidance lives in prompt space: the planner decides whether the
+/// identity is a participant constraint, instead of the harness keyword-
+/// matching the input. The trailing "Find calls: " marker is what
+/// `strip_gong_query_prefix` keys on.
 pub fn gong_query_prefix(name: &str) -> String {
-    format!("My name is {name}, find calls: ")
-}
-
-/// Whether the query refers to the user in the first person ("my calls",
-/// "did I talk to..."). Only then does the /init identity belong in the
-/// query — otherwise the planner would constrain every search to calls the
-/// user participated in.
-pub fn refers_to_self(text: &str) -> bool {
-    let lowered = text.to_lowercase();
-    lowered
-        .split(|c: char| !c.is_alphanumeric())
-        .any(|token| matches!(token, "my" | "me" | "i" | "mine" | "myself"))
+    format!(
+        "My name is {name}. Treat my identity as a participant constraint only \
+if the request refers to me or my calls; otherwise ignore who I am. \
+Find calls: "
+    )
 }
 
 /// Control token marking a debug-mode query (stripped by core and display).
@@ -62,7 +60,7 @@ pub fn strip_gong_query_prefix(text: &str) -> &str {
     let Some(rest) = text.strip_prefix("My name is ") else {
         return text;
     };
-    match rest.split_once(", find calls: ") {
+    match rest.split_once("Find calls: ") {
         Some((_, query)) => query,
         None => text,
     }
