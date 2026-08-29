@@ -423,6 +423,11 @@ impl ChatWidget {
     }
 
     pub(super) fn configured_status_line_items(&self) -> Vec<String> {
+        // Gong retrieval mode: no status line under the composer (the model
+        // and path it displays are not meaningful for gong turns).
+        if std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty()) {
+            return Vec::new();
+        }
         self.config.tui_status_line.clone().unwrap_or_else(|| {
             DEFAULT_STATUS_LINE_ITEMS
                 .iter()

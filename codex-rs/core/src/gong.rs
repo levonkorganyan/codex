@@ -199,8 +199,26 @@ fn results_markdown(event: &Value) -> String {
             .map(|s| s.chars().take(10).collect::<String>())
             .unwrap_or_default();
         match row["url"].as_str() {
-            Some(url) => lines.push(format!("{rank}. [{title}]({url})  — {date}")),
-            None => lines.push(format!("{rank}. {title}  — {date}")),
+            Some(url) => lines.push(format!("{rank}. [{title}]({url}) — {date}")),
+            None => lines.push(format!("{rank}. {title} — {date}")),
+        }
+        if let Some(excerpt) = row["brief_excerpt"].as_str()
+            && !excerpt.is_empty()
+        {
+            lines.push(format!("   {excerpt}"));
+        }
+        let matched = row["matched"]
+            .as_array()
+            .map(|signals| {
+                signals
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            })
+            .unwrap_or_default();
+        if !matched.is_empty() {
+            lines.push(format!("   matched: {matched}"));
         }
     }
     lines.join("\n")

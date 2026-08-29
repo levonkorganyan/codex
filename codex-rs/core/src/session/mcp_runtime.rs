@@ -353,7 +353,13 @@ impl Session {
             .environment_cwds
             .entry(codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string())
             .or_insert_with(|| PathUri::from_abs_path(&desired.config.cwd));
-        let mcp_servers = effective_mcp_servers(&config, auth.as_ref());
+        // Gong retrieval mode never exposes tools to a model, so configured MCP
+        // servers must not be spawned or connected at startup.
+        let mcp_servers = if crate::gong::enabled() {
+            Default::default()
+        } else {
+            effective_mcp_servers(&config, auth.as_ref())
+        };
         config.set_server_permission_profiles(
             &mcp_servers,
             desired.environments.turn_environments().map(|environment| {
