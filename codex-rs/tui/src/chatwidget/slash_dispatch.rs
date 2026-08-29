@@ -724,7 +724,8 @@ impl ChatWidget {
         let trimmed = args.trim();
         match cmd {
             SlashCommand::Init if crate::slash_command::gong_mode() => {
-                // Frontend-only until wired to the sidecar protocol.
+                // The submission funnel prefixes queries with this identity;
+                // the history cell strips it again for display.
                 self.gong_user_name = Some(trimmed.to_string());
                 self.add_info_message(format!("gong will search as {trimmed}"), None);
             }

@@ -112,15 +112,17 @@ impl ChatWidget {
         shell_escape_policy: ShellEscapePolicy,
     ) -> (bool, Option<AppCommand>) {
         // Gong mode: every submitted query carries the /init identity so the
-        // retrieval workflow can resolve "my calls". Skipped when the message
-        // carries text elements, whose ranges index into the original text.
+        // retrieval workflow can resolve "my calls". The history cell strips
+        // the prefix again so the transcript shows the user's raw input.
+        // Skipped when the message carries text elements, whose ranges index
+        // into the original text.
         if crate::slash_command::gong_mode()
             && let Some(name) = self.gong_user_name.as_deref()
             && !user_message.text.trim().is_empty()
             && user_message.text_elements.is_empty()
             && user_message.mention_bindings.is_empty()
         {
-            let prefix = format!("My name is {name}, find calls: ");
+            let prefix = crate::slash_command::gong_query_prefix(name);
             if !user_message.text.starts_with(&prefix) {
                 user_message.text = format!("{prefix}{}", user_message.text);
             }

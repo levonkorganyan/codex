@@ -1361,8 +1361,15 @@ impl ChatWidget {
             || !display.local_images.is_empty()
             || !display.remote_image_urls.is_empty()
         {
+            // Gong mode: the transcript shows the raw input; the /init
+            // identity prefix stays on the query sent to retrieval.
+            let message = if display.text_elements.is_empty() {
+                crate::slash_command::strip_gong_query_prefix(&display.message).to_string()
+            } else {
+                display.message.clone()
+            };
             self.add_to_history(history_cell::new_user_prompt(
-                display.message,
+                message,
                 display.text_elements,
                 display.local_images,
                 display.remote_image_urls,

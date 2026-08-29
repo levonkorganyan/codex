@@ -4,6 +4,25 @@ use strum::IntoEnumIterator;
 pub fn gong_mode() -> bool {
     std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty())
 }
+
+/// Identity prefix added to every submitted gong query.
+pub fn gong_query_prefix(name: &str) -> String {
+    format!("My name is {name}, find calls: ")
+}
+
+/// Strips the gong identity prefix from a displayed user message, if present.
+pub fn strip_gong_query_prefix(text: &str) -> &str {
+    if !gong_mode() {
+        return text;
+    }
+    let Some(rest) = text.strip_prefix("My name is ") else {
+        return text;
+    };
+    match rest.split_once(", find calls: ") {
+        Some((_, query)) => query,
+        None => text,
+    }
+}
 use strum_macros::AsRefStr;
 use strum_macros::EnumIter;
 use strum_macros::EnumString;
