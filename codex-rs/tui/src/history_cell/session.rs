@@ -321,28 +321,17 @@ impl HistoryCell for SessionHeaderHistoryCell {
         if gong_mode {
             // Borderless ASCII gong logo instead of the boxed session card.
             const LOGO: [&str; 6] = [
-                " ██████╗  ██████╗ ███╗   ██╗ ██████╗ ",
-                "██╔════╝ ██╔═══██╗████╗  ██║██╔════╝ ",
-                "██║  ███╗██║   ██║██╔██╗ ██║██║  ███╗",
-                "██║   ██║██║   ██║██║╚██╗██║██║   ██║",
-                "╚██████╔╝╚██████╔╝██║ ╚████║╚██████╔╝",
-                " ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ",
+                " ██████╗  ██████╗ ███╗   ██╗ ██████╗     ███████╗██╗  ██╗",
+                "██╔════╝ ██╔═══██╗████╗  ██║██╔════╝     ██╔════╝██║  ██║",
+                "██║  ███╗██║   ██║██╔██╗ ██║██║  ███╗    ███████╗███████║",
+                "██║   ██║██║   ██║██║╚██╗██║██║   ██║    ╚════██║██╔══██║",
+                "╚██████╔╝╚██████╔╝██║ ╚████║╚██████╔╝██╗ ███████║██║  ██║",
+                " ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚═╝ ╚══════╝╚═╝  ╚═╝",
             ];
             let mut lines: Vec<Line<'static>> = LOGO
                 .iter()
-                .enumerate()
-                .map(|(index, row)| {
-                    let mut spans =
-                        vec![Span::from(*row).fg(crate::slash_command::GONG_PURPLE)];
-                    // ".sh" sits on the logo's baseline row.
-                    if index == 4 {
-                        spans.push(
-                            Span::from(".sh")
-                                .bold()
-                                .fg(crate::slash_command::GONG_PURPLE),
-                        );
-                    }
-                    Line::from(spans)
+                .map(|row| {
+                    Line::from(Span::from(*row).fg(crate::slash_command::GONG_PURPLE))
                 })
                 .collect();
             lines.push(Line::from(vec![

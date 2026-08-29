@@ -43,6 +43,7 @@ use codex_protocol::items::AgentMessageItem;
 use codex_protocol::items::McpToolCallItem;
 use codex_protocol::items::McpToolCallStatus;
 use codex_protocol::items::TurnItem;
+use codex_protocol::models::MessagePhase;
 use codex_protocol::mcp::CallToolResult;
 use codex_protocol::protocol::EventMsg;
 use codex_protocol::protocol::TurnStartedEvent;
@@ -391,7 +392,7 @@ impl SessionTask for GongTask {
         }
         if question.is_empty() {
             let text = "Ask a Gong retrieval question in natural language.".to_string();
-            emit_agent_message(&sess, &ctx, &text).await;
+            emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
             return Ok(Some(text));
         }
 
@@ -402,7 +403,7 @@ impl SessionTask for GongTask {
                 Ok(sidecar) => *guard = Some(sidecar),
                 Err(err) => {
                     let text = format!("Gong sidecar failed to start: {err}");
-                    emit_agent_message(&sess, &ctx, &text).await;
+                    emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
                     return Ok(Some(text));
                 }
             }
@@ -421,7 +422,7 @@ impl SessionTask for GongTask {
         if let Err(err) = write_line(&mut sidecar.stdin, &ask).await {
             *guard = None;
             let text = format!("Gong sidecar is unreachable: {err}");
-            emit_agent_message(&sess, &ctx, &text).await;
+            emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
             return Ok(Some(text));
         }
 
@@ -452,7 +453,7 @@ impl SessionTask for GongTask {
                         return Err(CodexErr::TurnAborted);
                     }
                     let text = "Gong sidecar exited unexpectedly.".to_string();
-                    emit_agent_message(&sess, &ctx, &text).await;
+                    emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
                     return Ok(Some(text));
                 }
             };
@@ -488,7 +489,8 @@ impl SessionTask for GongTask {
                     }
                 }
                 "plan" => {
-                    emit_agent_message(&sess, &ctx, &plan_markdown(&event)).await;
+                    emit_agent_message(&sess, &ctx, &plan_markdown(&event), MessagePhase::Commentary)
+                        .await;
                 }
                 "pool" => {
                     if let Some(count) = event["candidate_count"].as_u64() {
@@ -513,13 +515,13 @@ impl SessionTask for GongTask {
                     if write_line(&mut sidecar.stdin, &reply).await.is_err() {
                         *guard = None;
                         let text = "Gong sidecar is unreachable.".to_string();
-                        emit_agent_message(&sess, &ctx, &text).await;
+                        emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
                         return Ok(Some(text));
                     }
                 }
                 "results" => {
                     let text = results_markdown(&event);
-                    emit_agent_message(&sess, &ctx, &text).await;
+                    emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
                     break Some(text);
                 }
                 "abstain" => {
@@ -527,7 +529,7 @@ impl SessionTask for GongTask {
                         "**Need more to go on.** {}",
                         event["message"].as_str().unwrap_or_default()
                     );
-                    emit_agent_message(&sess, &ctx, &text).await;
+                    emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
                     break Some(text);
                 }
                 "error" => {
@@ -538,7 +540,7 @@ impl SessionTask for GongTask {
                         "Retrieval failed: {}",
                         event["message"].as_str().unwrap_or("unknown error")
                     );
-                    emit_agent_message(&sess, &ctx, &text).await;
+                    emit_agent_message(&sess, &ctx, &text, MessagePhase::FinalAnswer).await;
                     break Some(text);
                 }
                 _ => {}
@@ -631,13 +633,20 @@ async fn write_line(stdin: &mut ChildStdin, value: &Value) -> std::io::Result<()
     stdin.flush().await
 }
 
-async fn emit_agent_message(sess: &Session, ctx: &TurnContext, text: &str) {
+async fn emit_agent_message(
+    sess: &Session,
+    ctx: &TurnContext,
+    text: &str,
+    phase: MessagePhase,
+) {
     let item = TurnItem::AgentMessage(AgentMessageItem {
         id: Uuid::new_v4().to_string(),
         content: vec![AgentMessageContent::Text {
             text: text.to_string(),
         }],
-        phase: None,
+        // Commentary keeps the status indicator (and its animation frames)
+        // alive for the rest of the turn; FinalAnswer dismisses it.
+        phase: Some(phase),
         memory_citation: None,
         delivery: None,
     });
