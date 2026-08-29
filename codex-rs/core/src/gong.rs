@@ -55,6 +55,8 @@ const SIDECAR_ENV: &str = "CODEX_GONG_SIDECAR";
 /// Client-side control token carried at the front of the submitted text; the
 /// TUI cannot reach core directly, so the run/debug mode rides the message.
 pub const DEBUG_MODE_TOKEN: &str = "[gong:interactive] ";
+/// Client-side control token selecting the fast (M2 agentic MCP search) engine.
+pub const FAST_SEARCH_TOKEN: &str = "[gong:fast] ";
 const SIDECAR_CWD_ENV: &str = "CODEX_GONG_CWD";
 const PROTOCOL_VERSION: u64 = 1;
 
@@ -73,6 +75,7 @@ fn stage_label(stage: &str) -> &'static str {
         "finalization" => "Building candidate pool",
         "ranking_evidence" => "Hydrating candidate evidence",
         "ranking" => "Reranking candidates",
+        "mcp_search" => "Searching Fivetran AI (hybrid)",
         _ => "Retrieval stage",
     }
 }
@@ -101,7 +104,12 @@ fn fmt_seconds(value: &Value) -> Option<String> {
 
 fn stage_detail(event: &Value) -> String {
     let mut parts: Vec<String> = Vec::new();
-    if event["stage"] == "ranking" {
+    if event["stage"] == "mcp_search" {
+        if let Some(attempts) = event["search_attempts"].as_u64() {
+            let plural = if attempts == 1 { "" } else { "es" };
+            parts.push(format!("{attempts} search{plural}"));
+        }
+    } else if event["stage"] == "ranking" {
         if let (Some(cin), Some(cout)) = (
             event["candidates_in"].as_u64(),
             event["results_out"].as_u64(),
@@ -368,12 +376,19 @@ impl SessionTask for GongTask {
         sess.send_event(ctx.as_ref(), event).await;
 
         let mut question = extract_question(&input);
-        let mode = if let Some(rest) = question.strip_prefix(DEBUG_MODE_TOKEN) {
-            question = rest.trim_start().to_string();
-            "interactive"
-        } else {
-            "run"
-        };
+        let mut mode = "run";
+        let mut search = "deep";
+        loop {
+            if let Some(rest) = question.strip_prefix(DEBUG_MODE_TOKEN) {
+                question = rest.trim_start().to_string();
+                mode = "interactive";
+            } else if let Some(rest) = question.strip_prefix(FAST_SEARCH_TOKEN) {
+                question = rest.trim_start().to_string();
+                search = "fast";
+            } else {
+                break;
+            }
+        }
         if question.is_empty() {
             let text = "Ask a Gong retrieval question in natural language.".to_string();
             emit_agent_message(&sess, &ctx, &text).await;
@@ -401,6 +416,7 @@ impl SessionTask for GongTask {
             "id": turn_id,
             "question": question,
             "mode": mode,
+            "search": search,
         });
         if let Err(err) = write_line(&mut sidecar.stdin, &ask).await {
             *guard = None;

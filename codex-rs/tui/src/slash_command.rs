@@ -13,12 +13,16 @@ pub fn gong_query_prefix(name: &str) -> String {
 /// Control token marking a debug-mode query (stripped by core and display).
 pub const GONG_DEBUG_TOKEN: &str = "[gong:interactive] ";
 
+/// Control token selecting the fast (M2) search engine.
+pub const GONG_FAST_TOKEN: &str = "[gong:fast] ";
+
 /// Strips the gong control prefixes from a displayed user message, if present.
 pub fn strip_gong_query_prefix(text: &str) -> &str {
     if !gong_mode() {
         return text;
     }
     let text = text.strip_prefix(GONG_DEBUG_TOKEN).unwrap_or(text);
+    let text = text.strip_prefix(GONG_FAST_TOKEN).unwrap_or(text);
     let Some(rest) = text.strip_prefix("My name is ") else {
         return text;
     };
@@ -119,7 +123,9 @@ impl SlashCommand {
         if gong_mode() {
             match self {
                 SlashCommand::Init => return "tell gong who you are (/init <your name>)",
-                SlashCommand::SearchMode => return "switch retrieval depth: fast or deep",
+                SlashCommand::SearchMode => {
+                    return "switch engine: fast (hybrid search) or deep (semantic SQL)";
+                }
                 _ => {}
             }
         }

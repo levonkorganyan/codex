@@ -127,6 +127,15 @@ impl ChatWidget {
                     user_message.text = format!("{prefix}{}", user_message.text);
                 }
             }
+            if !self.gong_search_deep
+                && !user_message.text.starts_with(crate::slash_command::GONG_FAST_TOKEN)
+            {
+                user_message.text = format!(
+                    "{}{}",
+                    crate::slash_command::GONG_FAST_TOKEN,
+                    user_message.text
+                );
+            }
             if self.gong_debug_mode
                 && !user_message.text.starts_with(crate::slash_command::GONG_DEBUG_TOKEN)
             {
