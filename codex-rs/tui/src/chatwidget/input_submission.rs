@@ -117,14 +117,24 @@ impl ChatWidget {
         // Skipped when the message carries text elements, whose ranges index
         // into the original text.
         if crate::slash_command::gong_mode()
-            && let Some(name) = self.gong_user_name.as_deref()
             && !user_message.text.trim().is_empty()
             && user_message.text_elements.is_empty()
             && user_message.mention_bindings.is_empty()
         {
-            let prefix = crate::slash_command::gong_query_prefix(name);
-            if !user_message.text.starts_with(&prefix) {
-                user_message.text = format!("{prefix}{}", user_message.text);
+            if let Some(name) = self.gong_user_name.as_deref() {
+                let prefix = crate::slash_command::gong_query_prefix(name);
+                if !user_message.text.starts_with(&prefix) {
+                    user_message.text = format!("{prefix}{}", user_message.text);
+                }
+            }
+            if self.gong_debug_mode
+                && !user_message.text.starts_with(crate::slash_command::GONG_DEBUG_TOKEN)
+            {
+                user_message.text = format!(
+                    "{}{}",
+                    crate::slash_command::GONG_DEBUG_TOKEN,
+                    user_message.text
+                );
             }
         }
         if self.misalignment_policy_violation {

@@ -10,11 +10,15 @@ pub fn gong_query_prefix(name: &str) -> String {
     format!("My name is {name}, find calls: ")
 }
 
-/// Strips the gong identity prefix from a displayed user message, if present.
+/// Control token marking a debug-mode query (stripped by core and display).
+pub const GONG_DEBUG_TOKEN: &str = "[gong:debug] ";
+
+/// Strips the gong control prefixes from a displayed user message, if present.
 pub fn strip_gong_query_prefix(text: &str) -> &str {
     if !gong_mode() {
         return text;
     }
+    let text = text.strip_prefix(GONG_DEBUG_TOKEN).unwrap_or(text);
     let Some(rest) = text.strip_prefix("My name is ") else {
         return text;
     };

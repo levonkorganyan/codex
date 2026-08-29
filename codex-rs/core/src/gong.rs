@@ -46,9 +46,15 @@ use codex_protocol::items::TurnItem;
 use codex_protocol::mcp::CallToolResult;
 use codex_protocol::protocol::EventMsg;
 use codex_protocol::protocol::TurnStartedEvent;
+use codex_protocol::request_user_input::RequestUserInputArgs;
+use codex_protocol::request_user_input::RequestUserInputQuestion;
+use codex_protocol::request_user_input::RequestUserInputQuestionOption;
 use codex_protocol::user_input::UserInput;
 
 const SIDECAR_ENV: &str = "CODEX_GONG_SIDECAR";
+/// Client-side control token carried at the front of the submitted text; the
+/// TUI cannot reach core directly, so the run/debug mode rides the message.
+pub const DEBUG_MODE_TOKEN: &str = "[gong:debug] ";
 const SIDECAR_CWD_ENV: &str = "CODEX_GONG_CWD";
 const PROTOCOL_VERSION: u64 = 1;
 
@@ -336,7 +342,13 @@ impl SessionTask for GongTask {
         });
         sess.send_event(ctx.as_ref(), event).await;
 
-        let question = extract_question(&input);
+        let mut question = extract_question(&input);
+        let mode = if let Some(rest) = question.strip_prefix(DEBUG_MODE_TOKEN) {
+            question = rest.trim_start().to_string();
+            "debug"
+        } else {
+            "run"
+        };
         if question.is_empty() {
             let text = "Ask a Gong retrieval question in natural language.".to_string();
             emit_agent_message(&sess, &ctx, &text).await;
@@ -363,6 +375,7 @@ impl SessionTask for GongTask {
             "op": "ask",
             "id": turn_id,
             "question": question,
+            "mode": mode,
         });
         if let Err(err) = write_line(&mut sidecar.stdin, &ask).await {
             *guard = None;
@@ -447,6 +460,22 @@ impl SessionTask for GongTask {
                         .await;
                     }
                 }
+                "choice" => {
+                    let selected = request_choice_from_user(&sess, &ctx, &event).await;
+                    let reply = json!({
+                        "v": PROTOCOL_VERSION,
+                        "op": "choose",
+                        "id": turn_id,
+                        "choice_id": event["choice_id"],
+                        "selected": selected,
+                    });
+                    if write_line(&mut sidecar.stdin, &reply).await.is_err() {
+                        *guard = None;
+                        let text = "Gong sidecar is unreachable.".to_string();
+                        emit_agent_message(&sess, &ctx, &text).await;
+                        return Ok(Some(text));
+                    }
+                }
                 "results" => {
                     let text = results_markdown(&event);
                     emit_agent_message(&sess, &ctx, &text).await;
@@ -479,6 +508,62 @@ impl SessionTask for GongTask {
         }
         Ok(None)
     }
+}
+
+/// Present a sidecar choice through codex's option picker and map the answer
+/// back to an option index. None keeps the workflow's recommended default.
+async fn request_choice_from_user(
+    sess: &Session,
+    ctx: &TurnContext,
+    event: &Value,
+) -> Option<usize> {
+    let options: Vec<(String, String)> = event["options"]
+        .as_array()
+        .map(|options| {
+            options
+                .iter()
+                .map(|option| {
+                    let label = option["label"].as_str().unwrap_or("(option)").to_string();
+                    let description =
+                        option["description"].as_str().unwrap_or_default().to_string();
+                    (label, description)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if options.is_empty() {
+        return None;
+    }
+    let question_id = event["choice_id"].as_str().unwrap_or("gong-choice").to_string();
+    let args = RequestUserInputArgs {
+        questions: vec![RequestUserInputQuestion {
+            id: question_id.clone(),
+            header: "Disambiguate".to_string(),
+            question: event["prompt"]
+                .as_str()
+                .unwrap_or("Which did you mean?")
+                .to_string(),
+            is_other: false,
+            is_secret: false,
+            options: Some(
+                options
+                    .iter()
+                    .map(|(label, description)| RequestUserInputQuestionOption {
+                        label: label.clone(),
+                        description: description.clone(),
+                    })
+                    .collect(),
+            ),
+        }],
+        is_blocking: true,
+        auto_resolution_ms: None,
+    };
+    let response = sess
+        .request_user_input(ctx, Uuid::new_v4().to_string(), args)
+        .await?;
+    let answer = response.answers.get(&question_id)?;
+    let chosen = answer.answers.first()?;
+    options.iter().position(|(label, _)| label == chosen)
 }
 
 fn sidecar_exited(sidecar: &mut Sidecar) -> bool {
