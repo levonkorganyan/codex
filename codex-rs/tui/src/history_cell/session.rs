@@ -376,14 +376,20 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let dir = self.format_directory(Some(dir_max_width));
         let dir_spans = vec![Span::from(dir_prefix).dim(), Span::from(dir)];
 
-        let mut lines = vec![
-            make_row(title_spans),
-            make_row(Vec::new()),
-            make_row(model_spans),
-            make_row(dir_spans),
-        ];
+        let mut lines = if gong_mode {
+            // Gong mode: branding + directory only. The model, /model hint, and
+            // permissions rows describe machinery the gong turn never uses.
+            vec![make_row(title_spans), make_row(dir_spans)]
+        } else {
+            vec![
+                make_row(title_spans),
+                make_row(Vec::new()),
+                make_row(model_spans),
+                make_row(dir_spans),
+            ]
+        };
 
-        if self.yolo_mode {
+        if self.yolo_mode && !gong_mode {
             let permissions_label = format!("{PERMISSIONS_LABEL:<label_width$}");
             lines.push(make_row(vec![
                 Span::from(format!("{permissions_label} ")).dim(),

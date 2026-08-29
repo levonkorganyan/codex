@@ -50,6 +50,11 @@ fn experimental_tooltips() -> Vec<&'static str> {
 
 /// Pick a random tooltip to show to the user when starting Codex.
 pub(crate) fn get_tooltip(plan: Option<PlanType>, fast_mode_enabled: bool) -> Option<String> {
+    // Gong retrieval mode strips codex chrome; tips describe features the
+    // gong harness never exposes.
+    if std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty()) {
+        return None;
+    }
     let mut rng = rand::rng();
 
     if let Some(announcement) = announcement::fetch_announcement_tip(plan) {

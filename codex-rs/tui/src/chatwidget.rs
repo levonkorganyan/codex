@@ -2007,6 +2007,15 @@ impl Drop for ChatWidget {
 }
 
 const PLACEHOLDER: &str = "Ask Codex to do anything";
+const GONG_PLACEHOLDER: &str = "Ask about Gong calls";
+
+pub(crate) fn placeholder() -> &'static str {
+    if std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty()) {
+        GONG_PLACEHOLDER
+    } else {
+        PLACEHOLDER
+    }
+}
 const SIDE_PLACEHOLDER: &str = "Ask a follow-up question";
 
 // Extract the first bold (Markdown) element in the form **...** from `s`.

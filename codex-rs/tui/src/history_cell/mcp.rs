@@ -128,7 +128,43 @@ impl McpToolCallCell {
         }
     }
 
+    /// First-class rendering for gong retrieval stages: one line per stage,
+    /// spinner while running, then a magenta dot with the deterministic
+    /// jobs/latency/bytes detail. No "Calling"/"Called" tool framing.
+    fn render_gong_lines(&self) -> Vec<Line<'static>> {
+        let status = self.success();
+        let bullet = match status {
+            Some(_) => "⏺".magenta(),
+            None => activity_indicator(
+                Some(self.start_time),
+                MotionMode::from_animations_enabled(self.animations_enabled),
+                ReducedMotionIndicator::StaticBullet,
+            )
+            .unwrap_or_else(|| "⏺".dim()),
+        };
+        let mut spans: Vec<Span<'static>> =
+            vec![bullet, " ".into(), Span::from(self.invocation.tool.clone())];
+        if status.is_none() {
+            spans.push("…".dim());
+        } else if let Some(Ok(result)) = &self.result {
+            let detail = result
+                .content
+                .iter()
+                .filter_map(|block| block.text())
+                .collect::<Vec<_>>()
+                .join(" · ");
+            if !detail.is_empty() {
+                spans.push("  ".into());
+                spans.push(Span::from(detail.to_string()).dim());
+            }
+        }
+        vec![Line::from(spans)]
+    }
+
     fn render_lines(&self, width: u16, mode: McpToolCallRenderMode) -> Vec<Line<'static>> {
+        if self.invocation.server == "gong" {
+            return self.render_gong_lines();
+        }
         let mut lines: Vec<Line<'static>> = Vec::new();
         let status = self.success();
         let node_repl = self.result_kind() == McpResultKind::NodeRepl;

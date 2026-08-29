@@ -100,6 +100,11 @@ impl CodeModeService {
     }
 
     pub(crate) fn take_unavailable_warning(&self, tool_mode: ToolMode) -> Option<String> {
+        // Gong retrieval mode never runs model tools, so code-mode
+        // availability is irrelevant noise there.
+        if crate::gong::enabled() {
+            return None;
+        }
         let error = self.availability.as_ref().err()?;
         let behavior = match tool_mode {
             ToolMode::Direct => "Falling back to direct tools",
