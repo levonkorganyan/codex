@@ -37,13 +37,13 @@ use crate::session::turn_context::TurnContext;
 use crate::state::TaskKind;
 use crate::tasks::SessionTask;
 use crate::tasks::SessionTaskResult;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
 use codex_protocol::error::CodexErr;
 use codex_protocol::items::AgentMessageContent;
 use codex_protocol::items::AgentMessageItem;
-use codex_protocol::items::DynamicToolCallItem;
-use codex_protocol::items::DynamicToolCallStatus;
+use codex_protocol::items::McpToolCallItem;
+use codex_protocol::items::McpToolCallStatus;
 use codex_protocol::items::TurnItem;
+use codex_protocol::mcp::CallToolResult;
 use codex_protocol::protocol::EventMsg;
 use codex_protocol::protocol::TurnStartedEvent;
 use codex_protocol::user_input::UserInput;
@@ -206,6 +206,37 @@ fn results_markdown(event: &Value) -> String {
     lines.join("\n")
 }
 
+fn stage_item(tool: &str, arguments: Value) -> McpToolCallItem {
+    McpToolCallItem {
+        id: Uuid::new_v4().to_string(),
+        server: "gong".to_string(),
+        tool: tool.to_string(),
+        arguments,
+        connector_id: None,
+        mcp_app_resource_uri: None,
+        link_id: None,
+        app_name: None,
+        action_name: None,
+        plugin_id: None,
+        read_only_hint: Some(true),
+        status: McpToolCallStatus::InProgress,
+        result: None,
+        error: None,
+        duration: None,
+    }
+}
+
+fn complete_stage_item(mut item: McpToolCallItem, detail: String) -> McpToolCallItem {
+    item.status = McpToolCallStatus::Completed;
+    item.result = Some(CallToolResult {
+        content: vec![json!({"type": "text", "text": detail})],
+        structured_content: None,
+        is_error: Some(false),
+        meta: None,
+    });
+    item
+}
+
 /// One live sidecar process, kept warm across turns.
 struct Sidecar {
     child: Child,
@@ -322,7 +353,7 @@ impl SessionTask for GongTask {
             return Ok(Some(text));
         }
 
-        let mut open_stage: Option<(String, DynamicToolCallItem)> = None;
+        let mut open_stage: Option<(String, McpToolCallItem)> = None;
         let mut cancelled = false;
         // Terminal text is already emitted as an AgentMessage turn item, so the
         // task returns no final message: returning it again would make clients
@@ -362,40 +393,24 @@ impl SessionTask for GongTask {
             match event["event"].as_str().unwrap_or_default() {
                 "stage_begin" => {
                     let stage = event["stage"].as_str().unwrap_or_default().to_string();
-                    let item = DynamicToolCallItem {
-                        id: Uuid::new_v4().to_string(),
-                        namespace: Some("gong".to_string()),
-                        tool: stage_label(&stage).to_string(),
-                        arguments: json!({"stage": stage}),
-                        status: DynamicToolCallStatus::InProgress,
-                        content_items: None,
-                        success: None,
-                        error: None,
-                        duration: None,
-                    };
+                    let item = stage_item(stage_label(&stage), json!({"stage": stage}));
                     sess.emit_turn_item_started(
                         ctx.as_ref(),
-                        &TurnItem::DynamicToolCall(item.clone()),
+                        &TurnItem::McpToolCall(item.clone()),
                     )
                     .await;
                     open_stage = Some((stage, item));
                 }
                 "stage_end" => {
-                    if let Some((_, mut item)) = open_stage.take() {
-                        item.status = DynamicToolCallStatus::Completed;
-                        item.success = Some(true);
-                        let detail = stage_detail(&event);
-                        if !detail.is_empty() {
-                            item.content_items = Some(vec![
-                                DynamicToolCallOutputContentItem::InputText { text: detail },
-                            ]);
-                        }
+                    if let Some((_, item)) = open_stage.take() {
+                        let mut completed = complete_stage_item(item, stage_detail(&event));
                         if let Some(ms) = event["wall_latency_ms"].as_f64() {
-                            item.duration = Some(Duration::from_millis(ms.max(0.0) as u64));
+                            completed.duration =
+                                Some(Duration::from_millis(ms.max(0.0) as u64));
                         }
                         sess.emit_turn_item_completed(
                             ctx.as_ref(),
-                            TurnItem::DynamicToolCall(item),
+                            TurnItem::McpToolCall(completed),
                         )
                         .await;
                     }
@@ -487,25 +502,10 @@ async fn emit_agent_message(sess: &Session, ctx: &TurnContext, text: &str) {
 }
 
 async fn emit_completed_tool(sess: &Session, ctx: &TurnContext, tool: &str, detail: &str) {
-    let item = DynamicToolCallItem {
-        id: Uuid::new_v4().to_string(),
-        namespace: Some("gong".to_string()),
-        tool: tool.to_string(),
-        arguments: json!({}),
-        status: DynamicToolCallStatus::InProgress,
-        content_items: None,
-        success: None,
-        error: None,
-        duration: None,
-    };
-    sess.emit_turn_item_started(ctx, &TurnItem::DynamicToolCall(item.clone()))
+    let item = stage_item(tool, json!({}));
+    sess.emit_turn_item_started(ctx, &TurnItem::McpToolCall(item.clone()))
         .await;
-    let mut completed = item;
-    completed.status = DynamicToolCallStatus::Completed;
-    completed.success = Some(true);
-    completed.content_items = Some(vec![DynamicToolCallOutputContentItem::InputText {
-        text: detail.to_string(),
-    }]);
-    sess.emit_turn_item_completed(ctx, TurnItem::DynamicToolCall(completed))
+    let completed = complete_stage_item(item, detail.to_string());
+    sess.emit_turn_item_completed(ctx, TurnItem::McpToolCall(completed))
         .await;
 }
