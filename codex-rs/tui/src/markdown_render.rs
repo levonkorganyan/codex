@@ -360,6 +360,11 @@ struct LinkState {
 }
 
 fn should_render_link_destination(dest_url: &str) -> bool {
+    // Gong mode: call links render as hyperlinked titles only; the URL in
+    // parentheses is noise next to every result row.
+    if crate::slash_command::gong_mode() {
+        return false;
+    }
     !is_local_path_like_link(dest_url)
 }
 

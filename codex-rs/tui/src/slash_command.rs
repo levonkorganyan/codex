@@ -11,7 +11,7 @@ pub fn gong_query_prefix(name: &str) -> String {
 }
 
 /// Control token marking a debug-mode query (stripped by core and display).
-pub const GONG_DEBUG_TOKEN: &str = "[gong:debug] ";
+pub const GONG_DEBUG_TOKEN: &str = "[gong:interactive] ";
 
 /// Strips the gong control prefixes from a displayed user message, if present.
 pub fn strip_gong_query_prefix(text: &str) -> &str {

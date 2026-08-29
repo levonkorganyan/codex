@@ -147,7 +147,7 @@ impl CollaborationModeIndicator {
         match self {
             CollaborationModeIndicator::Plan => format!("Plan mode{suffix}"),
             CollaborationModeIndicator::GongRun => "run mode (shift+tab to switch)".to_string(),
-            CollaborationModeIndicator::GongDebug => "debug mode (shift+tab to switch)".to_string(),
+            CollaborationModeIndicator::GongDebug => "interactive mode (shift+tab to switch)".to_string(),
         }
     }
 

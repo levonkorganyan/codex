@@ -54,7 +54,7 @@ use codex_protocol::user_input::UserInput;
 const SIDECAR_ENV: &str = "CODEX_GONG_SIDECAR";
 /// Client-side control token carried at the front of the submitted text; the
 /// TUI cannot reach core directly, so the run/debug mode rides the message.
-pub const DEBUG_MODE_TOKEN: &str = "[gong:debug] ";
+pub const DEBUG_MODE_TOKEN: &str = "[gong:interactive] ";
 const SIDECAR_CWD_ENV: &str = "CODEX_GONG_CWD";
 const PROTOCOL_VERSION: u64 = 1;
 
@@ -178,6 +178,28 @@ fn plan_markdown(event: &Value) -> String {
     lines.join("\n")
 }
 
+/// Human labels for the deterministic retrieval-signal member names.
+fn friendly_signal(member: &str) -> String {
+    match member {
+        "calls.title" => "call title".to_string(),
+        "calls.brief" => "call brief".to_string(),
+        "calls.started" => "call date".to_string(),
+        "users.full_name" | "users.identity" => "your name".to_string(),
+        "users.email_address" => "your email".to_string(),
+        "participants.name" => "participant name".to_string(),
+        "participants.email_address" => "participant email".to_string(),
+        "participants.email_domain" => "participant email domain".to_string(),
+        "organizations.identity" => "organization".to_string(),
+        "call_topic_occurrences.name" => "call topic".to_string(),
+        "trackers.name" | "tracker_occurrences.name" => "tracker".to_string(),
+        "outline_sections.section" | "outline_items.text" => "call outline".to_string(),
+        "transcript_turns.sentence_text" => "transcript".to_string(),
+        "bm25" => "keywords (BM25)".to_string(),
+        "declared_index" | "theme_index:bm25" => "theme index".to_string(),
+        other => other.replace('_', " ").replace('.', " "),
+    }
+}
+
 fn results_markdown(event: &Value) -> String {
     let results = event["results"].as_array().cloned().unwrap_or_default();
     let mut summary: Vec<String> = Vec::new();
@@ -205,27 +227,30 @@ fn results_markdown(event: &Value) -> String {
             .map(|s| s.chars().take(10).collect::<String>())
             .unwrap_or_default();
         match row["url"].as_str() {
-            Some(url) => lines.push(format!("{rank}. [{title}]({url}) — {date}")),
-            None => lines.push(format!("{rank}. {title} — {date}")),
+            Some(url) => lines.push(format!("{rank}. **[{title}]({url})** — {date}")),
+            None => lines.push(format!("{rank}. **{title}** — {date}")),
         }
         if let Some(excerpt) = row["brief_excerpt"].as_str()
             && !excerpt.is_empty()
         {
-            lines.push(format!("   {excerpt}"));
+            lines.push(format!("   *Brief:* {excerpt}"));
         }
         let matched = row["matched"]
             .as_array()
             .map(|signals| {
-                signals
+                let mut labels: Vec<String> = signals
                     .iter()
                     .filter_map(Value::as_str)
-                    .collect::<Vec<_>>()
-                    .join(" · ")
+                    .map(friendly_signal)
+                    .collect();
+                labels.dedup();
+                labels.join(" · ")
             })
             .unwrap_or_default();
         if !matched.is_empty() {
-            lines.push(format!("   matched: {matched}"));
+            lines.push(format!("   *Matched on:* {matched}"));
         }
+        lines.push(String::new());
     }
     lines.join("\n")
 }
@@ -345,7 +370,7 @@ impl SessionTask for GongTask {
         let mut question = extract_question(&input);
         let mode = if let Some(rest) = question.strip_prefix(DEBUG_MODE_TOKEN) {
             question = rest.trim_start().to_string();
-            "debug"
+            "interactive"
         } else {
             "run"
         };
