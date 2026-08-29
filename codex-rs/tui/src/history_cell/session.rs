@@ -335,7 +335,7 @@ impl HistoryCell for SessionHeaderHistoryCell {
                 })
                 .collect();
             lines.push(Line::from(vec![
-                Span::from("semantic retrieval · M12.22 · ").dim(),
+                Span::from("BigQuery project: ").dim(),
                 Span::from(crate::slash_command::gong_bigquery_project()).bold(),
             ]));
             return lines;
