@@ -330,15 +330,23 @@ impl HistoryCell for SessionHeaderHistoryCell {
             ];
             let mut lines: Vec<Line<'static>> = LOGO
                 .iter()
-                .map(|row| {
-                    Line::from(Span::from(*row).fg(crate::slash_command::GONG_PURPLE))
+                .enumerate()
+                .map(|(index, row)| {
+                    let mut spans =
+                        vec![Span::from(*row).fg(crate::slash_command::GONG_PURPLE)];
+                    // ".sh" sits on the logo's baseline row.
+                    if index == 4 {
+                        spans.push(
+                            Span::from(".sh")
+                                .bold()
+                                .fg(crate::slash_command::GONG_PURPLE),
+                        );
+                    }
+                    Line::from(spans)
                 })
                 .collect();
             lines.push(Line::from(vec![
-                Span::from("GONG.sh")
-                    .bold()
-                    .fg(crate::slash_command::GONG_PURPLE),
-                Span::from(" · BigQuery project: ").dim(),
+                Span::from("BigQuery project: ").dim(),
                 Span::from(crate::slash_command::gong_bigquery_project()).bold(),
             ]));
             return lines;
