@@ -155,8 +155,12 @@ impl CollaborationModeIndicator {
         let label = self.label(show_cycle_hint);
         match self {
             CollaborationModeIndicator::Plan => Span::from(label).magenta(),
-            CollaborationModeIndicator::GongRun => Span::from(label).magenta(),
-            CollaborationModeIndicator::GongDebug => Span::from(label).yellow(),
+            CollaborationModeIndicator::GongRun => {
+                Span::from(label).fg(crate::slash_command::GONG_PURPLE)
+            }
+            CollaborationModeIndicator::GongDebug => {
+                Span::from(label).fg(crate::slash_command::GONG_PINK)
+            }
         }
     }
 }

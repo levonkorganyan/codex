@@ -1,4 +1,10 @@
+use ratatui::style::Color;
 use strum::IntoEnumIterator;
+
+/// Gong brand purple (primary logo color).
+pub const GONG_PURPLE: Color = Color::Rgb(0x80, 0x39, 0xE9);
+/// Gong brand accent ("Radical Red").
+pub const GONG_PINK: Color = Color::Rgb(0xFF, 0x23, 0x70);
 
 /// Whether the TUI is running as the Gong retrieval harness.
 pub fn gong_mode() -> bool {

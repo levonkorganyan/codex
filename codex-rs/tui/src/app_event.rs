@@ -512,6 +512,11 @@ pub(crate) enum AppEvent {
     },
 
     /// Pause or resume the current thread goal.
+    /// Gong mode: set the retrieval engine chosen from the /search-mode picker.
+    SetGongSearchDeep {
+        deep: bool,
+    },
+
     SetThreadGoalStatus {
         thread_id: ThreadId,
         status: ThreadGoalStatus,

@@ -132,15 +132,17 @@ impl McpToolCallCell {
     /// spinner while running, then a magenta dot with the deterministic
     /// jobs/latency/bytes detail. No "Calling"/"Called" tool framing.
     fn render_gong_lines(&self) -> Vec<Line<'static>> {
+        const SPINNER_FRAMES: [&str; 10] =
+            ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
         let status = self.success();
         let bullet = match status {
-            Some(_) => "⏺".magenta(),
-            None => activity_indicator(
-                Some(self.start_time),
-                MotionMode::from_animations_enabled(self.animations_enabled),
-                ReducedMotionIndicator::StaticBullet,
-            )
-            .unwrap_or_else(|| "⏺".dim()),
+            Some(_) => "⏺".fg(crate::slash_command::GONG_PURPLE),
+            None if self.animations_enabled => {
+                let frame = (self.start_time.elapsed().as_millis() / 100) as usize
+                    % SPINNER_FRAMES.len();
+                Span::from(SPINNER_FRAMES[frame]).fg(crate::slash_command::GONG_PURPLE)
+            }
+            None => "⏺".dim(),
         };
         let mut spans: Vec<Span<'static>> =
             vec![bullet, " ".into(), Span::from(self.invocation.tool.clone())];

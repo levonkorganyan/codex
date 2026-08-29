@@ -270,11 +270,7 @@ impl ChatWidget {
                 self.submit_user_message(INIT_PROMPT.to_string().into());
             }
             SlashCommand::SearchMode => {
-                let mode = if self.gong_search_deep { "deep" } else { "fast" };
-                self.add_info_message(
-                    format!("Search mode: {mode}. Usage: /search-mode <fast|deep>"),
-                    None,
-                );
+                self.open_gong_search_mode_picker();
             }
             SlashCommand::Compact => {
                 if self.blocks_direct_input {
@@ -595,6 +591,52 @@ impl ChatWidget {
     /// Branches that prepare arguments should pass `record_history: false` to the composer because
     /// the staged slash-command entry is the recall record; using the normal submission-history
     /// path as well would make a single command appear twice during Up-arrow navigation.
+
+    /// Gong mode: dropdown between the two retrieval engines.
+    pub(crate) fn open_gong_search_mode_picker(&mut self) {
+        use crate::bottom_pane::SelectionAction;
+        use crate::bottom_pane::SelectionItem;
+        use crate::bottom_pane::SelectionViewParams;
+        use crate::bottom_pane::popup_consts::standard_popup_hint_line;
+
+        let deep = self.gong_search_deep;
+        let fast_actions: Vec<SelectionAction> = vec![Box::new(|tx| {
+            tx.send(crate::app_event::AppEvent::SetGongSearchDeep { deep: false });
+        })];
+        let deep_actions: Vec<SelectionAction> = vec![Box::new(|tx| {
+            tx.send(crate::app_event::AppEvent::SetGongSearchDeep { deep: true });
+        })];
+        self.show_selection_view(SelectionViewParams {
+            title: Some("Search mode".to_string()),
+            subtitle: Some("How gong retrieves calls for your questions".to_string()),
+            footer_hint: Some(standard_popup_hint_line()),
+            initial_selected_idx: Some(if deep { 1 } else { 0 }),
+            items: vec![
+                SelectionItem {
+                    name: "fast".to_string(),
+                    description: Some(
+                        "Fivetran AI hybrid search — quicker, lighter answers".to_string(),
+                    ),
+                    is_current: !deep,
+                    actions: fast_actions,
+                    dismiss_on_select: true,
+                    ..Default::default()
+                },
+                SelectionItem {
+                    name: "deep".to_string(),
+                    description: Some(
+                        "M12.22 semantic SQL retrieval — thorough, warehouse-native".to_string(),
+                    ),
+                    is_current: deep,
+                    actions: deep_actions,
+                    dismiss_on_select: true,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        });
+    }
+
     pub(super) fn dispatch_command_with_args(
         &mut self,
         cmd: SlashCommand,

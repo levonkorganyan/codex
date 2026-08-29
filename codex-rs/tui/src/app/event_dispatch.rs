@@ -1226,6 +1226,9 @@ impl App {
                 self.set_thread_goal_draft(app_server, thread_id, draft, mode)
                     .await;
             }
+            AppEvent::SetGongSearchDeep { deep } => {
+                self.chat_widget.set_gong_search_deep(deep);
+            }
             AppEvent::SetThreadGoalStatus { thread_id, status } => {
                 self.set_thread_goal_status(app_server, thread_id, status)
                     .await;

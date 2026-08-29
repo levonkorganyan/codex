@@ -321,8 +321,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let gong_mode = std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty());
         let title_spans: Vec<Span<'static>> = if gong_mode {
             vec![
-                Span::from("● ").magenta(),
-                Span::from("gong").bold().magenta(),
+                Span::from("● ").fg(crate::slash_command::GONG_PURPLE),
+                Span::from("gong")
+                    .bold()
+                    .fg(crate::slash_command::GONG_PURPLE),
                 Span::from("  semantic retrieval · M12.22").dim(),
             ]
         } else {

@@ -1528,6 +1528,18 @@ impl ChatWidget {
         }
     }
 
+    /// Gong mode: apply a /search-mode picker selection.
+    pub(crate) fn set_gong_search_deep(&mut self, deep: bool) {
+        self.gong_search_deep = deep;
+        let label = if deep {
+            "deep (M12.22 semantic SQL)"
+        } else {
+            "fast (Fivetran AI hybrid search)"
+        };
+        self.add_info_message(format!("Search mode: {label}"), None);
+        self.request_redraw();
+    }
+
     pub(crate) fn add_info_message(&mut self, message: String, hint: Option<String>) {
         self.add_to_history(history_cell::new_info_event(message, hint));
         self.request_redraw();
