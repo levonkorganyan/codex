@@ -121,7 +121,9 @@ impl ChatWidget {
             && user_message.text_elements.is_empty()
             && user_message.mention_bindings.is_empty()
         {
-            if let Some(name) = self.gong_user_name.as_deref() {
+            if let Some(name) = self.gong_user_name.as_deref()
+                && crate::slash_command::refers_to_self(&user_message.text)
+            {
                 let prefix = crate::slash_command::gong_query_prefix(name);
                 if !user_message.text.starts_with(&prefix) {
                     user_message.text = format!("{prefix}{}", user_message.text);

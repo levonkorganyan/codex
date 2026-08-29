@@ -30,9 +30,20 @@ pub fn gong_bigquery_project() -> String {
     std::env::var("BQ_PROJECT").unwrap_or_else(|_| "digital-arbor-400".to_string())
 }
 
-/// Identity prefix added to every submitted gong query.
+/// Identity prefix added to submitted gong queries that refer to the user.
 pub fn gong_query_prefix(name: &str) -> String {
     format!("My name is {name}, find calls: ")
+}
+
+/// Whether the query refers to the user in the first person ("my calls",
+/// "did I talk to..."). Only then does the /init identity belong in the
+/// query — otherwise the planner would constrain every search to calls the
+/// user participated in.
+pub fn refers_to_self(text: &str) -> bool {
+    let lowered = text.to_lowercase();
+    lowered
+        .split(|c: char| !c.is_alphanumeric())
+        .any(|token| matches!(token, "my" | "me" | "i" | "mine" | "myself"))
 }
 
 /// Control token marking a debug-mode query (stripped by core and display).
