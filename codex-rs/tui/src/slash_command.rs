@@ -11,6 +11,25 @@ pub fn gong_mode() -> bool {
     std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty())
 }
 
+/// BigQuery project the sidecar queries: an explicit --project in the sidecar
+/// command line, else the sidecar's own BQ_PROJECT/default fallback chain.
+pub fn gong_bigquery_project() -> String {
+    if let Ok(command_line) = std::env::var("CODEX_GONG_SIDECAR") {
+        let mut parts = command_line.split_whitespace();
+        while let Some(part) = parts.next() {
+            if part == "--project"
+                && let Some(value) = parts.next()
+            {
+                return value.to_string();
+            }
+            if let Some(value) = part.strip_prefix("--project=") {
+                return value.to_string();
+            }
+        }
+    }
+    std::env::var("BQ_PROJECT").unwrap_or_else(|_| "digital-arbor-400".to_string())
+}
+
 /// Identity prefix added to every submitted gong query.
 pub fn gong_query_prefix(name: &str) -> String {
     format!("My name is {name}, find calls: ")

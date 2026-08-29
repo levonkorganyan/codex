@@ -317,24 +317,37 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
 
+        let gong_mode = crate::slash_command::gong_mode();
+        if gong_mode {
+            // Borderless ASCII gong logo instead of the boxed session card.
+            const LOGO: [&str; 6] = [
+                " ██████╗  ██████╗ ███╗   ██╗ ██████╗ ",
+                "██╔════╝ ██╔═══██╗████╗  ██║██╔════╝ ",
+                "██║  ███╗██║   ██║██╔██╗ ██║██║  ███╗",
+                "██║   ██║██║   ██║██║╚██╗██║██║   ██║",
+                "╚██████╔╝╚██████╔╝██║ ╚████║╚██████╔╝",
+                " ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ",
+            ];
+            let mut lines: Vec<Line<'static>> = LOGO
+                .iter()
+                .map(|row| {
+                    Line::from(Span::from(*row).fg(crate::slash_command::GONG_PURPLE))
+                })
+                .collect();
+            lines.push(Line::from(vec![
+                Span::from("semantic retrieval · M12.22 · ").dim(),
+                Span::from(crate::slash_command::gong_bigquery_project()).bold(),
+            ]));
+            return lines;
+        }
+
         // Title line rendered inside the box: ">_ OpenAI Codex (vX)"
-        let gong_mode = std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty());
-        let title_spans: Vec<Span<'static>> = if gong_mode {
-            vec![
-                Span::from("● ").fg(crate::slash_command::GONG_PURPLE),
-                Span::from("gong")
-                    .bold()
-                    .fg(crate::slash_command::GONG_PURPLE),
-                Span::from("  semantic retrieval · M12.22").dim(),
-            ]
-        } else {
-            vec![
-                Span::from(">_ ").dim(),
-                Span::from("OpenAI Codex").bold(),
-                Span::from(" ").dim(),
-                Span::from(format!("(v{})", self.version)).dim(),
-            ]
-        };
+        let title_spans: Vec<Span<'static>> = vec![
+            Span::from(">_ ").dim(),
+            Span::from("OpenAI Codex").bold(),
+            Span::from(" ").dim(),
+            Span::from(format!("(v{})", self.version)).dim(),
+        ];
 
         const CHANGE_MODEL_HINT_COMMAND: &str = "/model";
         const CHANGE_MODEL_HINT_EXPLANATION: &str = " to change";
@@ -378,20 +391,14 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let dir = self.format_directory(Some(dir_max_width));
         let dir_spans = vec![Span::from(dir_prefix).dim(), Span::from(dir)];
 
-        let mut lines = if gong_mode {
-            // Gong mode: branding + directory only. The model, /model hint, and
-            // permissions rows describe machinery the gong turn never uses.
-            vec![make_row(title_spans), make_row(dir_spans)]
-        } else {
-            vec![
-                make_row(title_spans),
-                make_row(Vec::new()),
-                make_row(model_spans),
-                make_row(dir_spans),
-            ]
-        };
+        let mut lines = vec![
+            make_row(title_spans),
+            make_row(Vec::new()),
+            make_row(model_spans),
+            make_row(dir_spans),
+        ];
 
-        if self.yolo_mode && !gong_mode {
+        if self.yolo_mode {
             let permissions_label = format!("{PERMISSIONS_LABEL:<label_width$}");
             lines.push(make_row(vec![
                 Span::from(format!("{permissions_label} ")).dim(),
