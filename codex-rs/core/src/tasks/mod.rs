@@ -507,8 +507,13 @@ impl Session {
         self.input_queue
             .extend_pending_input_for_turn_state(turn_state.as_ref(), input)
             .await;
-        self.start_task(turn_context, Vec::new(), RegularTask::new())
-            .await;
+        if crate::gong::enabled() {
+            self.start_task(turn_context, Vec::new(), crate::gong::GongTask::new())
+                .await;
+        } else {
+            self.start_task(turn_context, Vec::new(), RegularTask::new())
+                .await;
+        }
     }
 
     pub async fn abort_all_tasks(self: &Arc<Self>, reason: TurnAbortReason) {

@@ -308,9 +308,15 @@ async fn start_or_steer(
             if has_explicit_input {
                 task_input.push(pending_turn_input(input));
             }
-            session
-                .spawn_task(turn_context, task_input, RegularTask::new())
-                .await;
+            if crate::gong::enabled() {
+                session
+                    .spawn_task(turn_context, task_input, crate::gong::GongTask::new())
+                    .await;
+            } else {
+                session
+                    .spawn_task(turn_context, task_input, RegularTask::new())
+                    .await;
+            }
             Ok(TurnInputSubmission::Started {
                 turn_id: submission_id,
             })
@@ -435,9 +441,15 @@ async fn start_if_idle(
             // Recovery resumes an existing turn without a new empty user message.
         }
     }
-    session
-        .start_task(turn_context, task_input, RegularTask::new())
-        .await;
+    if crate::gong::enabled() {
+        session
+            .start_task(turn_context, task_input, crate::gong::GongTask::new())
+            .await;
+    } else {
+        session
+            .start_task(turn_context, task_input, RegularTask::new())
+            .await;
+    }
     Ok(TurnInputSubmission::Started {
         turn_id: submission_id,
     })

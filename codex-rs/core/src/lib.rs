@@ -49,6 +49,7 @@ pub use codex_thread::GuardianRootSnapshot;
 pub use codex_thread::ThreadConfigSnapshot;
 pub use session::turn_context::TurnContext;
 mod agent;
+mod gong;
 mod agent_communication;
 mod attestation;
 mod codex_delegate;

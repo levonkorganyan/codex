@@ -318,12 +318,21 @@ impl HistoryCell for SessionHeaderHistoryCell {
         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
 
         // Title line rendered inside the box: ">_ OpenAI Codex (vX)"
-        let title_spans: Vec<Span<'static>> = vec![
-            Span::from(">_ ").dim(),
-            Span::from("OpenAI Codex").bold(),
-            Span::from(" ").dim(),
-            Span::from(format!("(v{})", self.version)).dim(),
-        ];
+        let gong_mode = std::env::var("CODEX_GONG_SIDECAR").is_ok_and(|v| !v.trim().is_empty());
+        let title_spans: Vec<Span<'static>> = if gong_mode {
+            vec![
+                Span::from("● ").magenta(),
+                Span::from("gong").bold().magenta(),
+                Span::from("  semantic retrieval · M12.22").dim(),
+            ]
+        } else {
+            vec![
+                Span::from(">_ ").dim(),
+                Span::from("OpenAI Codex").bold(),
+                Span::from(" ").dim(),
+                Span::from(format!("(v{})", self.version)).dim(),
+            ]
+        };
 
         const CHANGE_MODEL_HINT_COMMAND: &str = "/model";
         const CHANGE_MODEL_HINT_EXPLANATION: &str = " to change";
