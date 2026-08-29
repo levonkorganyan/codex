@@ -1424,7 +1424,11 @@ impl ChatComposer {
     }
 
     fn right_footer_line_with_context(&self) -> Line<'static> {
-        let mut line = if self.footer.context_window_pending {
+        let mut line = if self.footer.context_window_pending
+            || crate::slash_command::gong_mode()
+        {
+            // Gong mode: the context-window meter tracks a model conversation
+            // that gong turns never have.
             Line::default()
         } else {
             context_window_line(
@@ -4616,7 +4620,9 @@ impl ChatComposer {
                 let show_cycle_hint = !footer_props.is_task_running
                     && self.footer.collaboration_mode_indicator.is_some();
                 let show_shortcuts_hint = match footer_props.mode {
-                    FooterMode::ComposerEmpty => !self.is_in_paste_burst(),
+                    FooterMode::ComposerEmpty => {
+                        !self.is_in_paste_burst() && !crate::slash_command::gong_mode()
+                    }
                     FooterMode::ComposerHasDraft => false,
                     FooterMode::HistorySearch
                     | FooterMode::QuitShortcutReminder

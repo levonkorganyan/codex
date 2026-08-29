@@ -36,13 +36,12 @@ impl ChatWidget {
             return;
         }
 
-        // Gong mode: Tab on an empty composer switches run/debug execution mode.
+        // Gong mode: shift+tab on an empty composer switches run/debug execution mode.
         if crate::slash_command::gong_mode()
             && matches!(
                 key_event,
                 KeyEvent {
-                    code: KeyCode::Tab,
-                    modifiers: KeyModifiers::NONE,
+                    code: KeyCode::BackTab,
                     kind: KeyEventKind::Press,
                     ..
                 }
